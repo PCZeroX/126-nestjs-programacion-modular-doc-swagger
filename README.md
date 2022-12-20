@@ -57,8 +57,6 @@ NODE_ENV=dev npm run start:dev
 
 ## 1.2 - Encapsular lógica en módulos
 
-![](img/img-1.2-1.png)
-
 <https://docs.nestjs.com/cli/usages>
 
 ```TS
@@ -1393,22 +1391,54 @@ import * as Joi from 'joi';
 
 ## 3.1 - Integrando Swagger y PartialType con Open API
 
-> - <https://spec.openapis.org/oas/v3.1.0>
-> - <https://docs.nestjs.com/openapi/introduction>
-
-<https://docs.nestjs.com/openapi/introduction#installation>
+- <https://spec.openapis.org/oas/v3.1.0>
+- <https://docs.nestjs.com/openapi/introduction>
+- <https://docs.nestjs.com/openapi/introduction#installation>
 
 ```JS
 npm install --save @nestjs/swagger swagger-ui-express
 ```
 
-<http://localhost:3000/docs/>
-
-![](img/img-3.1-1.png)
-
-<https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin>
+- <http://localhost:4000/docs/>
+- <https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin>
 
 `main.ts`
+
+```TS
+import { Logger } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const logger = new Logger('bootstrap');
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  const PORT = configService.get('PORT');
+
+  app.setGlobalPrefix('api'); // http://localhost:4000/api
+
+  const config = new DocumentBuilder()
+    .setTitle('API con swagger')
+    .setDescription('Aprendiendo a usar swagger para mis APIs')
+    .setVersion('1.1.0')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('docs', app, document); // http://localhost:4000/docs
+
+  await app.listen(PORT);
+
+  logger.log(`🚀 Server started on http://localhost:${PORT}`);
+}
+bootstrap();
+```
+
+`nest-cli.json`
+
+- https://docs.nestjs.com/openapi/cli-plugin#using-the-cli-plugin
 
 ```JSON
 {
@@ -1420,7 +1450,7 @@ npm install --save @nestjs/swagger swagger-ui-express
 }
 ```
 
-Paso extra `users/dtos/customer.dto.ts`
+Paso extra `modules/users/dtos/customer.dto.ts`
 
 ```TS
 import { IsString, IsNotEmpty, IsPhoneNumber } from 'class-validator';
@@ -1444,7 +1474,7 @@ export class CreateCustomerDto {
 export class UpdateCustomerDto extends PartialType(CreateCustomerDto) { }
 ```
 
-Paso extra `users/dtos/user.dto.ts`
+Paso extra `modules/users/dtos/user.dto.ts`
 
 ```TS
 import { IsString, IsNotEmpty, IsEmail, Length } from 'class-validator';
@@ -1470,7 +1500,7 @@ export class UpdateUserDto extends PartialType(CreateUserDto) { }
 
 Prácticamente tienes que cambiarlo en todo los dtos
 
-<http://localhost:3000/docs/>
+<http://localhost:4000/docs/>
 
 Se procede a borrar el directorio `dist`
 
@@ -1480,11 +1510,11 @@ rm -rf dist/
 
 Se vuelve a ingresar a esta dirección de enlace
 
-<http://localhost:3000/docs/>
-
-![](img/img-3.1-2.png)
+<http://localhost:4000/docs/>
 
 ## 3.2 - Extendiendo la documentación
+
+`ApiProperty`: sirve para documentar cada uno de los atributos
 
 `products.controller.ts`
 
@@ -1493,15 +1523,13 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 
 // ApiTags es para agrupar
 @ApiTags('products')
-
 @Controller('products')
 export class ProductsController {
 
   constructor(private productsService: ProductsService) { }
 
   @Get()
-  // Dejar un resumen de este endpoint
-  @ApiOperation({ summary: 'List of products 🦄' })
+  @ApiOperation({ summary: 'List of products 🦄' }) // Dejar un resumen de este endpoint
   getProducts(
     @Query('limit') limit: number = 100,
     @Query('offset') offset: number = 0,
@@ -1511,8 +1539,6 @@ export class ProductsController {
   }
 }
 ```
-
-![](img/img-3.2-1.png)
 
 ## 4.1 - Configuración de Heroku
 

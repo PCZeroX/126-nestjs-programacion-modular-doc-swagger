@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { NotFoundException } from '@nestjs/common/exceptions';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ProductsService } from 'src/modules/products/services/products.service';
+
+import { ProductsService } from '../../products/services/products.service';
+import { CreateUserDto, UpdateUserDto } from '../dtos/user.dto';
 import { Order } from '../entities/order.entity';
 import { User } from '../entities/user.entity';
 
@@ -38,6 +39,35 @@ export class UsersService {
       throw new NotFoundException(`User ${id} not found`);
     }
     return user;
+  }
+
+  create(data: CreateUserDto) {
+    this.counterId = this.counterId + 1;
+    const newUser = {
+      id: this.counterId,
+      ...data,
+    };
+    this.users.push(newUser);
+    return newUser;
+  }
+
+  update(id: number, changes: UpdateUserDto) {
+    const user = this.findOne(id);
+    const index = this.users.findIndex((item) => item.id === id);
+    this.users[index] = {
+      ...user,
+      ...changes,
+    };
+    return this.users[index];
+  }
+
+  remove(id: number) {
+    const index = this.users.findIndex((item) => item.id === id);
+    if (index === -1) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+    this.users.splice(index, 1);
+    return true;
   }
 
   getOrderByUser(id: number): Order {
