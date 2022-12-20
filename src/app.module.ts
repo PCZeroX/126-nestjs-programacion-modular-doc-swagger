@@ -15,7 +15,7 @@ import { DatabaseModule } from './modules/database/database.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: enviroments[process.env.NODE_ENV],
+      envFilePath: `env/${enviroments[process.env.NODE_ENV]}`,
       load: [configuration],
       isGlobal: true,
       validationSchema: Joi.object({

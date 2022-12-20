@@ -9,7 +9,7 @@ async function bootstrap() {
   const logger = new Logger('bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  const PORT = configService.get('PORT');
+  const PORT = configService.get<number>('PORT') || process.env.PORT;
 
   app.setGlobalPrefix('api'); // http://localhost:4000/api
 
@@ -22,6 +22,10 @@ async function bootstrap() {
 
   SwaggerModule.setup('docs', app, document); // http://localhost:4000/docs
 
+  app.enableCors({
+    origin: ['http://localhost:3000', 'http://localhost:4000'],
+    credentials: true,
+  });
   await app.listen(PORT);
 
   logger.log(`🚀 Server started on http://localhost:${PORT}`);
