@@ -27,7 +27,7 @@ require("crypto").randomBytes(64).toString("hex")
   - [2.1 - Módulo de configuración](#21---módulo-de-configuración)
   - [2.2 - Configuración por ambientes](#22---configuración-por-ambientes)
   - [2.3 - Tipado en config](#23---tipado-en-config)
-  - [2.4 - Validación de esquemas en .envs con Joi](#24---validación-de-esquemas-en-envs-con-joi)
+  - [2.4 - Validación de esquemas en variables de ambiente con Joi](#24---validación-de-esquemas-en-variables-de-ambiente-con-joi)
   - [3.1 - Integrando Swagger y PartialType con Open API](#31---integrando-swagger-y-partialtype-con-open-api)
   - [3.2 - Extendiendo la documentación](#32---extendiendo-la-documentación)
   - [4.1 - Configuración de Heroku](#41---configuración-de-heroku)
@@ -196,7 +196,9 @@ import { HttpModule, HttpService } from '@nestjs/axios';
 
 Puede presentar un siguiente error
 
-> Axios Error: Unexpected End Of File {JavaScript Error}
+```TS
+Axios Error: Unexpected End Of File {JavaScript Error}
+```
 
 Solo tiene que agregar `'Accept-Encoding': ''` en su encabezado a la hora de solicitar un llamado a la api de jsonplaceholder
 
@@ -1175,36 +1177,45 @@ export class UsersService {
     private productsService: ProductsService,
     private configService: ConfigService,
   ) {}
+
+  findAll() {
+    const apiKey = this.configService.get('API_KEY');
+    const db = this.configService.get('DATABASE_NAME');
+    const port = this.configService.get('PORT');
+
+    console.log('apiKey:', apiKey);
+    // apiKey: 54a942bf88d13b245500089f537bf2c50882fd0d16f7a2ff9407e5de977b12c67197048ecfd088c48bde40453eb3e404bfe1519003bccae73bf6b1e231bf800a
+
+    console.log('db:', db);
+    // db: my_db
+
+    console.log('port:', port);
+    // port: 4000
+
+    return this.users;
+  }
 }
-```
-
-```TS
-
-```
-
-```TS
-
 ```
 
 ## 2.2 - Configuración por ambientes
 
-Se crea en la raíz del proyectos estas variables de entorno `.env`, `.prod.env` y `.stag.env`
+Se crea en la raíz del proyectos estas variables de entorno `.env.development`, `.env.production` y `.env.staging`
 
-`.env`
+`.env.development`
 
 ```TS
 API_KEY=123
 DATABASE_NAME=my_db
 ```
 
-`stag.env`
+`.env.staging`
 
 ```TS
 API_KEY=333
 DATABASE_NAME=my_db_stag
 ```
 
-`.prod.env`
+`.env.production`
 
 ```TS
 API_KEY=777
@@ -1215,9 +1226,9 @@ DATABASE_NAME=my_db_prod
 
 ```TS
 export const enviroments = {
-  dev: '.env',
-  stag: '.stag.env',
-  prod: '.prod.env',
+  dev: `.env.development`,
+  stag: `.env.staging`,
+  prod: `.env.production`,
 }
 ```
 
@@ -1254,25 +1265,130 @@ export class AppService {
   getHello(): string {
     const apiKey = this.config.get<string>('API_KEY');
     const name = this.config.get<string>('DATABASE_NAME');
-    return `Hello World! ${apiKey} ${name}`
+
+    return `Hello World! 🦄
+    - ${this.apiKey}
+    - ${apiKey}
+    - ${dbName}
+    - ${dbPort}
+    `;
   }
 }
 ```
 
+```TS
+Hello World! 🦄
+- this.apiKey: DEV 123
+- apiKey:
+54a942bf88d13b245500089f537bf2c50882fd0d16f7a2ff9407e5de977b12c67197048ecfd088c48bde40453eb3e404bfe1519003bccae73bf6b1e231bf800a
+- dbName: my_db
+- dbPort: 9876
+```
+
 ```JS
-NODE_ENV=stag yarn start:dev
+NODE_ENV=dev npm run start:dev
+
+// OR
+
+NODE_ENV=dev yarn start:dev
 ```
 
 ## 2.3 - Tipado en config
 
-```JS
+`configuration.ts`
 
+```TS
+import { registerAs } from '@nestjs/config';
+
+export default registerAs('config', () => {
+  return {
+    database: {
+      name: process.env.DATABASE_NAME,
+      port: process.env.DATABASE_PORT,
+    },
+    apiKey: process.env.API_KEY,
+  };
+});
 ```
 
-## 2.4 - Validación de esquemas en .envs con Joi
+`app.module.ts`
 
-```JS
+```TS
+import configuration from './config/configuration';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: enviroments[process.env.NODE_ENV],
+      load: [configuration], // Cargar la configuración
+      isGlobal: true,
+    }),
+  ]
+})
+```
+
+`app.service.ts`
+
+```TS
+import {  ConfigType } from '@nestjs/config';
+import { Injectable, Inject } from '@nestjs/common';
+import configuration from './config/configuration';
+
+@Injectable()
+export class AppService {
+  constructor(
+    @Inject('API_KEY') private apiKey: string,
+    @Inject(configuration.KEY)
+    private configService: ConfigType<typeof configuration>,
+  ) {}
+
+  getHello(): string {
+    const apiKey = this.configService.apiKey;
+    const dbName = this.configService.database.name;
+    const dbPort = this.configService.database.port;
+
+    const db = this.configService.database;
+    console.log('db:', db); // db: { name: 'my_db', port: '9876' }
+
+    return `Hello World! 🦄
+    - this.apiKey: ${this.apiKey}
+    - apiKey: ${apiKey}
+    - dbName: ${dbName}
+    - dbPort: ${dbPort}
+    `;
+  }
+}
+```
+
+## 2.4 - Validación de esquemas en variables de ambiente con Joi
+
+```TS
+npm install joi
+
+// OR
+
 yarn add joi
+```
+
+`app.module.ts`
+
+```TS
+import * as Joi from 'joi';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: enviroments[process.env.NODE_ENV],
+      load: [configuration],
+      isGlobal: true,
+      validationSchema: Joi.object({
+        API_KEY: Joi.string().required(),
+        DATABASE_NAME: Joi.string().required(),
+        DATABASE_PORT: Joi.number().required(),
+      }),
+    }),
+  ]
+})
 ```
 
 ## 3.1 - Integrando Swagger y PartialType con Open API
